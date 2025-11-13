@@ -11,7 +11,7 @@ from PIL import Image
 import pystray
 
 # Import our custom modules
-from utils import LogRedirector, get_exe_folder, resource_path
+from core.utils import LogRedirector, get_exe_folder, resource_path
 from config import NGROK_EXE_NAME, PORT 
 from core.gui import AppGUI
 from core.server import start_server_process

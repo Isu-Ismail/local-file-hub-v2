@@ -16,7 +16,7 @@ from werkzeug.utils import secure_filename, safe_join
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from utils import get_exe_folder
+from core.utils import get_exe_folder
 from config import PORT, TEMP_UPLOAD_DIR
 
 # --- FLASK SETUP ---
@@ -325,4 +325,4 @@ def start_server_process(settings):
     try: port = int(settings['port'])
     except: port = 2004
         
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True, use_reloader=False, ping_timeout=3600, ping_interval=25)
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True, use_reloader=False)

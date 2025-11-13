@@ -3,7 +3,7 @@
 # We will import these values into gui.py and server.py.
 
 import os
-from utils import get_exe_folder # Import our helper
+from core.utils import get_exe_folder # Import our helper
 
 # --- Core Config ---
 PORT = 2004
