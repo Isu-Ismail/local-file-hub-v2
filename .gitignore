@@ -1,3 +1,9 @@
 *.exe
 *__pycache__
 .env
+*.bat
+/dist
+/build
+*.spec
+*.nsi
+*.png
