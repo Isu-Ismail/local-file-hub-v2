@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+
+<body class="upload-portal-body">
+
+    <div class="upload-card">
+        {% if logo %}
+        <img src="{{ logo }}" alt="Logo" class="brand-logo">
+        {% endif %}
+
+        <h1>{{ title }}</h1>
+        <p class="subtitle">{{ subtitle }}</p>
+
+        <form id="upload-file-form">
+            <label for="file-upload" class="custom-file-upload"
+                style="justify-content: center; padding: 40px; border: 2px dashed #30363D; flex-direction: column; gap: 15px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#3B82F6">
+                    <path d="M11 15h2V9h3l-4-5-4 5h3z" />
+                    <path d="M20 18H4v-7H2v7c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2v-7h-2v7z" />
+                </svg>
+                <span id="file-upload-filename" style="font-size: 1rem;">Click to Select File</span>
+            </label>
+            <input type="file" id="file-upload" required>
+
+            <input type="text" id="file-rename-input" placeholder="File Name (Optional)"
+                style="display: none; width: 100%; padding: 12px; margin-top: 15px; background-color: #0B0E14; border: 1px solid #2B3240; color: white; border-radius: 8px; outline: none;">
+
+            <div id="upload-progress-container" style="display:none; margin-top: 25px;">
+                <div style="background-color: #333; height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div id="upload-progress-bar"
+                        style="width: 0%; height: 100%; background-color: #3B82F6; transition: width 0.2s;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                    <span id="upload-status-text" style="color: #94A3B8; font-size: 0.85rem;">Uploading...</span>
+                    <span id="upload-percentage" style="color: white; font-size: 0.85rem;">0%</span>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 25px; justify-content: center; gap: 10px;">
+                <button type="button" id="pause-upload-btn" class="modal-button cancel"
+                    style="display: none;">Pause</button>
+                <button type="button" id="start-upload-btn" class="modal-button submit"
+                    style="width: 100%; padding: 15px; font-size: 1rem;">Start Upload</button>
+            </div>
+        </form>
+
+        <a href="/logout" class="logout-link">Logout</a>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+</body>
+
+</html>

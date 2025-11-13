@@ -1,0 +1,812 @@
+/* --- Root Variables & Reset --- */
+:root {
+    /* Unified Dark Theme Palette */
+    --color-bg-dark: #010409;     
+    --color-bg-medium: #0D1117;   
+    --color-bg-light: #161B22;    
+    --color-bg-overlay: #21262D;  
+    
+    --color-border: #30363D;      
+    
+    --color-text-primary: #F0F6FC; 
+    --color-text-secondary: #8B949E; 
+    
+    --color-blue-primary: #2F81F7;
+    --color-blue-hover: #58A6FF;
+    --color-red-primary: #F85149;
+    --color-red-hover: #DA3633;
+    --color-green-primary: #238636;
+    --color-green-hover: #2EA043;
+    
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    
+    --header-height: 64px;      
+    --filter-bar-height: 50px;
+    --bottom-nav-height: 80px;  
+    
+    /* Glass Effect Variables */
+    --glass-bg: rgba(13, 17, 23, 0.85);
+    --glass-blur: blur(20px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* CRITICAL FIX: 
+   Fix the body height to the viewport.
+   Disable body scroll.
+*/
+html { 
+    font-family: var(--font-family); 
+    -webkit-tap-highlight-color: transparent;
+    height: 100%;
+}
+
+body { 
+    background-color: var(--color-bg-dark); 
+    color: var(--color-text-primary); 
+    font-size: 16px; 
+    height: 100dvh; /* Dynamic Viewport Height (fixes mobile address bar jump) */
+    overflow: hidden; /* Prevent whole page scroll */
+    width: 100%;
+}
+
+button { 
+    font-family: var(--font-family); 
+    background: none; 
+    border: none; 
+    cursor: pointer; 
+    color: inherit; 
+}
+
+/* --- THE HUGE CONTAINER (Flex Layout) --- */
+.app-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    position: relative;
+}
+
+/* --- PART 1: TOP SECTION (Header + Filter) --- */
+/* No longer fixed position, it sits at the top of the flex stack */
+.top-section {
+    flex-shrink: 0; /* Don't shrink */
+    z-index: 10;
+    background-color: var(--color-bg-medium); /* Solid background needed now */
+    border-bottom: 1px solid var(--color-border);
+}
+
+header {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    position: relative; /* For search overlay */
+}
+
+/* ... Header styles same as before ... */
+.header-left {
+    display: flex;
+    align-items: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.back-button {
+    margin-right: 4px;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+.back-button:hover { background-color: var(--color-bg-light); }
+.back-button svg {
+    width: 24px;
+    height: 24px;
+    color: var(--color-blue-primary); 
+}
+
+.path-display {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-right: 8px;
+    display: none;
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, black 90%, transparent 100%);
+}
+.breadcrumbs::-webkit-scrollbar { display: none; }
+
+.breadcrumbs a {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 1.05em;
+    padding: 6px 10px;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+.breadcrumbs a:hover { 
+    background-color: var(--color-bg-light); 
+    color: var(--color-text-primary);
+}
+.breadcrumbs a:not(:last-child)::after {
+    content: "›";
+    color: var(--color-text-secondary);
+    margin: 0 6px;
+    font-size: 1.2em;
+    vertical-align: middle;
+    opacity: 0.5;
+}
+.breadcrumbs a:last-child {
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+.header-actions {
+    margin-left: auto;
+    padding-left: 8px;
+    flex-shrink: 0;
+}
+
+.icon-button {
+    padding: 10px;
+    border-radius: 50%;
+    color: var(--color-text-secondary);
+    transition: all 0.2s;
+}
+.icon-button:hover {
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+    transform: scale(1.05);
+}
+.icon-button svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+}
+
+/* Search fixed to overlay header properly */
+/* --- SEARCH FIX (Polished) --- */
+
+/* --- SEARCH FIX (Instant - No Animation) --- */
+
+.search-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Solid background to cover breadcrumbs immediately */
+    background-color: var(--color-bg-medium); 
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    z-index: 200; 
+    /* REMOVED: All animation properties */
+}
+
+#search-input {
+    flex-grow: 1;
+    background-color: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    padding: 0 16px; /* Adjusted padding */
+    height: 40px;
+    border-radius: 20px; /* Simple pill shape */
+    font-size: 1rem;
+    outline: none;
+    /* Kept only border color transition for focus state */
+    transition: border-color 0.1s; 
+}
+
+#search-input:focus {
+    border-color: var(--color-blue-primary);
+}
+
+#close-search {
+    margin-left: 12px;
+    background-color: var(--color-bg-light);
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-secondary);
+}
+
+/* REMOVED: @keyframes simpleFade */
+
+/* Filter Bar (Inside Top Section) */
+.filter-bar {
+    height: var(--filter-bar-height);
+    background-color: var(--color-bg-dark); 
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    /* Border bottom removed as it blends into list */
+}
+
+.filter-button {
+    background-color: var(--color-bg-medium);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.filter-button:hover {
+    background-color: var(--color-bg-light);
+    border-color: var(--color-text-secondary);
+    color: var(--color-text-primary);
+}
+.filter-button svg { width: 16px; height: 16px; }
+
+
+/* --- PART 2: MIDDLE SECTION (Scroll Area) --- */
+/* This is where the magic happens */
+.scroll-area {
+    flex-grow: 1; /* Take all remaining space */
+    overflow-y: auto; /* Enable internal scrolling */
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    position: relative;
+    -webkit-overflow-scrolling: touch; /* Smooth iOS scroll momentum */
+    background-color: var(--color-bg-dark);
+}
+
+.file-list-container {
+    padding: 16px;
+    padding-bottom: 100px; /* Extra padding at bottom so FAB doesn't cover last item */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background-color: var(--color-bg-medium);
+    border: 1px solid transparent;
+    border-radius: 16px;
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.file-item:active {
+    transform: scale(0.98);
+    background-color: var(--color-bg-light);
+}
+.file-item:hover {
+    background-color: var(--color-bg-light);
+    border-color: var(--color-border);
+}
+
+.item-icon {
+    width: 42px;
+    height: 42px;
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255,255,255,0.03);
+    border-radius: 12px;
+}
+.item-icon svg { width: 28px; height: 28px; }
+.item-icon.folder { color: #58A6FF; }
+.item-icon.image { color: #A371F7; }
+.item-icon.video { color: #FF7B72; }
+.item-icon.pdf { color: #F85149; }
+.item-icon.sheet { color: #3FB950; }
+.item-icon.archive { color: #D29922; }
+.item-icon.file { color: #8B949E; }
+
+.item-details {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.item-name {
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.item-size {
+    font-size: 0.8em;
+    color: var(--color-text-secondary);
+}
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.item-actions .icon-button { padding: 8px; }
+.item-actions .icon-button:hover { background-color: var(--color-bg-overlay); }
+.item-actions .icon-button.delete svg { color: var(--color-red-primary); }
+.item-actions .icon-button.download svg { color: var(--color-blue-primary); }
+.empty-folder { padding: 60px 20px; text-align: center; color: var(--color-text-secondary); font-style: italic; }
+
+
+/* --- PART 3: BOTTOM SECTION (Nav) --- */
+/* No longer fixed, sits at bottom of flex stack */
+.bottom-section {
+    flex-shrink: 0; /* Don't shrink */
+    z-index: 10;
+    background-color: var(--color-bg-medium);
+    border-top: 1px solid var(--color-border);
+}
+
+.bottom-nav {
+    height: var(--bottom-nav-height);
+    display: flex;
+    justify-content: space-around;
+    padding-bottom: 15px; 
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    gap: 6px;
+    color: var(--color-text-secondary);
+    font-size: 0.7em;
+    font-weight: 500;
+    transition: color 0.2s;
+    background: none;
+}
+.nav-item svg { width: 26px; height: 26px; transition: transform 0.2s; }
+.nav-item.active { color: var(--color-blue-primary); }
+.nav-item.active svg { transform: translateY(-2px); }
+
+
+/* --- FLOATERS (Absolute to the App Layout or Body) --- */
+/* FAB needs to be fixed relative to the viewport */
+.fab {
+    position: fixed; 
+    bottom: calc(var(--bottom-nav-height) + 20px);
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    background-color: var(--color-blue-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(47, 129, 247, 0.4);
+    z-index: 200;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.fab:hover {
+    background-color: var(--color-blue-hover);
+    transform: scale(1.1);
+}
+.fab.active {
+    transform: rotate(45deg);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+}
+.fab.active svg { color: var(--color-text-primary); }
+.fab svg { width: 28px; height: 28px; color: white; }
+
+.fab-menu {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height) + 85px);
+    right: 24px;
+    z-index: 199;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+.fab-menu.active {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.fab-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    cursor: pointer;
+}
+.fab-menu-item span {
+    background-color: var(--color-bg-light);
+    color: var(--color-text-primary);
+    padding: 8px 14px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.fab-menu-item .icon-wrapper {
+    width: 44px;
+    height: 44px;
+    background-color: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s;
+}
+.fab-menu-item:hover .icon-wrapper {
+    background-color: var(--color-blue-primary);
+    color: white;
+    border-color: var(--color-blue-primary);
+}
+
+
+/* --- Modals --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 500;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.modal-overlay.active { visibility: visible; opacity: 1; }
+
+.modal {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    background-color: #1C2128;
+    border: 1px solid var(--color-border);
+    border-radius: 24px; 
+    width: 85%;
+    max-width: 380px;
+    padding: 28px;
+    z-index: 501;
+    visibility: hidden;
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.modal.active {
+    visibility: visible;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+.modal h3 {
+    font-size: 1.3em;
+    margin-bottom: 12px;
+    color: var(--color-text-primary);
+    text-align: center;
+}
+.modal p {
+    color: var(--color-text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.5;
+    text-align: center;
+    font-size: 0.95em;
+}
+.modal p.danger { color: var(--color-red-primary); font-weight: 500; }
+.modal p #delete-item-name { font-weight: 700; color: var(--color-text-primary); }
+
+.modal form { display: flex; flex-direction: column; gap: 20px; }
+
+.modal input[type="text"] {
+    background-color: #0D1117;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 1em;
+    color: var(--color-text-primary);
+    transition: border-color 0.2s;
+}
+.modal input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-blue-primary);
+}
+
+.custom-file-upload {
+    background-color: #0D1117;
+    border: 2px dashed var(--color-border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    gap: 10px;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+.custom-file-upload:hover {
+    border-color: var(--color-text-secondary);
+    background-color: rgba(255,255,255,0.02);
+}
+#file-upload-filename {
+    color: var(--color-text-secondary);
+    font-size: 0.9em;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.browse-btn {
+    background-color: var(--color-blue-primary);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+input[type="file"] { display: none; }
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+.modal-button {
+    flex: 1;
+    padding: 14px;
+    font-size: 1em;
+    font-weight: 600;
+    border-radius: 14px;
+    transition: filter 0.2s;
+}
+.modal-button:active { filter: brightness(0.8); }
+.modal-button.cancel {
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+.modal-button.submit {
+    background-color: var(--color-blue-primary);
+    color: white;
+    box-shadow: 0 4px 12px rgba(47, 129, 247, 0.3);
+}
+.modal-button.submit.danger {
+    background-color: var(--color-red-primary);
+    box-shadow: 0 4px 12px rgba(218, 54, 51, 0.3);
+}
+
+/* --- Spinner & Toast --- */
+.loading-spinner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(1, 4, 9, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.loading-spinner.active { visibility: visible; opacity: 1; }
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255,255,255,0.1);
+    border-top-color: var(--color-blue-primary);
+    border-radius: 50%;
+    animation: spin 0.8s cubic-bezier(0.6, 0.2, 0.4, 0.8) infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height) + 20px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background-color: #21262D;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 50px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 700;
+    visibility: hidden;
+    opacity: 0;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.toast.active {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+
+
+/* Add to your styles.css */
+#upload-step-1, #upload-step-2 {
+    transition: opacity 0.3s;
+}
+#delete-password {
+    margin-top: 10px;
+    background-color: #0D1117;
+    border: 1px solid #30363D; 
+    color: white;
+    padding: 10px;
+    width: 100%;
+    border-radius: 6px;
+}
+#delete-password:focus {
+    border-color: #DA3633; /* Red border for delete focus */
+    outline: none;
+}
+
+/* Add to static/styles.css */
+
+/* Animation for the Merging Phase */
+@keyframes stripe-move {
+    0% { background-position: 0 0; }
+    100% { background-position: 50px 50px; }
+}
+
+.progress-bar-merging {
+    background-image: linear-gradient(
+        45deg, 
+        rgba(255, 255, 255, 0.15) 25%, 
+        transparent 25%, 
+        transparent 50%, 
+        rgba(255, 255, 255, 0.15) 50%, 
+        rgba(255, 255, 255, 0.15) 75%, 
+        transparent 75%, 
+        transparent
+    );
+    background-size: 50px 50px;
+    background-color: #238636 !important; /* Green color */
+    animation: stripe-move 1s linear infinite;
+    width: 100% !important; /* Force full width */
+}
+
+/* --- PASTE THIS AT THE BOTTOM OF YOUR EXISTING styles.css --- */
+
+/* --- Upload Portal (upload.html) Specific Styles --- */
+.upload-portal-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--color-bg-dark);
+    background-image: radial-gradient(circle at top center, #161B22 0%, #010409 60%);
+}
+
+.upload-card {
+    background-color: var(--color-bg-medium);
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    padding: 40px;
+    width: 90%;
+    max-width: 480px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Logo & Header */
+.brand-logo {
+    max-height: 80px;
+    margin-bottom: 20px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.1));
+}
+
+.upload-card h1 {
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    color: var(--color-text-secondary);
+    margin-bottom: 30px;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+/* Logout Link */
+.logout-link {
+    display: inline-block;
+    margin-top: 25px;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 0.2s;
+}
+.logout-link:hover {
+    color: var(--color-red-primary);
+}
+
+/* --- Upload Steps Animation --- */
+#upload-step-1, #upload-step-2 {
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* --- Delete Password Input --- */
+#delete-password {
+    margin-top: 10px;
+    background-color: var(--color-bg-dark);
+    border: 1px solid var(--color-border); 
+    color: white;
+    padding: 12px;
+    width: 100%;
+    border-radius: 8px;
+    font-size: 1em;
+}
+#delete-password:focus {
+    border-color: var(--color-red-primary); /* Red border for danger action */
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.2);
+}
+
+/* --- Progress Bar Animation --- */
+@keyframes stripe-move {
+    0% { background-position: 0 0; }
+    100% { background-position: 50px 50px; }
+}
+
+.progress-bar-merging {
+    background-image: linear-gradient(
+        45deg, 
+        rgba(255, 255, 255, 0.15) 25%, 
+        transparent 25%, 
+        transparent 50%, 
+        rgba(255, 255, 255, 0.15) 50%, 
+        rgba(255, 255, 255, 0.15) 75%, 
+        transparent 75%, 
+        transparent
+    );
+    background-size: 50px 50px;
+    background-color: var(--color-green-primary) !important;
+    animation: stripe-move 1s linear infinite;
+    width: 100% !important;
+}

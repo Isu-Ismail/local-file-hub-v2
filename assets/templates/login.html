@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Local File Hub</title>
+    <style>
+        :root {
+            --color-bg-dark: #0D1117;
+            --color-bg-medium: #161B22;
+            --color-border: #30363D;
+            --color-text-primary: #C9D1D9;
+            --color-text-secondary: #8B949E;
+            --color-blue-primary: #2F81F7;
+            --color-blue-hover: #388BFF;
+            --color-red-primary: #DA3633;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        html {
+            font-family: var(--font-family);
+        }
+
+        body {
+            background-color: var(--color-bg-dark);
+            color: var(--color-text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background-color: var(--color-bg-medium);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 340px;
+            padding: 32px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 1.5em;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        .form-group input {
+            background-color: var(--color-bg-dark);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 1em;
+            color: var(--color-text-primary);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--color-blue-primary);
+            box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.3);
+        }
+
+        .login-button {
+            background-color: var(--color-blue-primary);
+            color: white;
+            padding: 14px;
+            font-size: 1em;
+            font-weight: 500;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .login-button:hover {
+            background-color: var(--color-blue-hover);
+        }
+
+        .error-message {
+            background-color: rgba(218, 54, 51, 0.1);
+            color: var(--color-red-primary);
+            border: 1px solid var(--color-red-primary);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            font-size: 0.9em;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-container">
+        <h1>Local File Hub</h1>
+
+        <!-- This is where the "Incorrect password" message will appear -->
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="error-message">
+            {{ messages[0] }}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <form class="login-form" action="{{ url_for('check_login') }}" method="POST">
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autofocus>
+            </div>
+            <button type="submit" class="login-button">Login</button>
+        </form>
+    </div>
+
+</body>
+
+</html>
