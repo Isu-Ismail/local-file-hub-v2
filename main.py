@@ -201,3 +201,5 @@ if __name__ == "__main__":
     try: shutil.rmtree(os.path.join(get_exe_folder(), "temp_uploads"), ignore_errors=True)
     except: pass
     ft.app(target=main, assets_dir="assets")
+
+    
