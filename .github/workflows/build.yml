@@ -3,19 +3,24 @@ name: Build Local Hub v2 Installer
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build-windows-release:
+    # Only runs if commit message contains "build"
     if: "contains(github.event.head_commit.message, 'build')"
+    
     runs-on: windows-latest
+    
     permissions:
       contents: write
 
     steps:
+      # 1. Checkout Code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -23,20 +28,26 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'requirements.txt'
 
-      - name: Install Python Dependencies
+      # 3. Install Python Libraries
+      - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
-      # --- FIX: Install NSIS via Chocolatey (Guarantees path) ---
+      # 4. Install NSIS & Update Path (THE FIX)
       - name: Install NSIS
-        run: choco install nsis
+        run: |
+          choco install nsis
+          # Add NSIS to the system PATH for this job
+          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
+        shell: pwsh
 
+      # 5. Ensure README exists
       - name: Ensure README exists
         run: |
           if not exist README.txt echo Local Hub v2 > README.txt
         shell: cmd
 
-      # --- Build EXE (No UPX) ---
+      # 6. Build EXE (No UPX - Stable)
       - name: Build Stable EXE
         run: |
           python -m PyInstaller ^
@@ -58,12 +69,13 @@ jobs:
             main.py
         shell: cmd
 
-      # --- Build Installer (Using global makensis command) ---
+      # 7. Create Installer (Now 'makensis' will be found)
       - name: Create Installer with NSIS
         run: |
           makensis setup.nsi
         shell: cmd
 
+      # 8. Generate Version Tag
       - name: Set up version tag
         id: version
         run: |
@@ -71,6 +83,7 @@ jobs:
           echo "version_tag=$version" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
+      # 9. Upload Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
