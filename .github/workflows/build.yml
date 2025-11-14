@@ -3,7 +3,7 @@ name: Build Local Hub v2 Installer
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   build-windows-release:
