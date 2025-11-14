@@ -92,6 +92,54 @@ header {
     align-items: center;
     margin-right: 12px;
     flex-shrink: 0;
+
+}
+/* --- NEW HEADER STYLES --- */
+.main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    background-color: var(--color-bg-medium);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.nav-bar-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    background-color: var(--color-bg-dark); /* Slightly darker for contrast */
+    border-bottom: 1px solid var(--color-border);
+    min-height: 50px;
+}
+
+.path-scroll-container {
+    flex-grow: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none; /* Hide scrollbar */
+    margin-left: 5px;
+    mask-image: linear-gradient(to right, black 90%, transparent 100%);
+}
+
+.path-text {
+    color: var(--color-text-secondary);
+    font-family: 'Consolas', monospace;
+    font-size: 0.95rem;
+}
+
+/* Adjust file list padding since header size changed */
+.file-list-container {
+    padding-top: 10px; 
 }
 
 .back-button {
@@ -180,19 +228,20 @@ header {
 
 /* --- SEARCH FIX (Instant - No Animation) --- */
 
+/* --- SEARCH FIX (Header Overlay Only) --- */
 .search-container {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    /* Solid background to cover breadcrumbs immediately */
+    height: 80px; /* FIX: Changed from 100% to 80px */
     background-color: var(--color-bg-medium); 
     display: flex;
     align-items: center;
     padding: 0 16px;
     z-index: 200; 
-    /* REMOVED: All animation properties */
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
 #search-input {
@@ -200,13 +249,12 @@ header {
     background-color: var(--color-bg-dark);
     border: 1px solid var(--color-border);
     color: var(--color-text-primary);
-    padding: 0 16px; /* Adjusted padding */
-    height: 40px;
-    border-radius: 20px; /* Simple pill shape */
-    font-size: 1rem;
+    padding: 0 20px;
+    height: 46px;
+    border-radius: 24px;
+    font-size: 1.1rem;
     outline: none;
-    /* Kept only border color transition for focus state */
-    transition: border-color 0.1s; 
+    transition: border-color 0.2s; 
 }
 
 #search-input:focus {
@@ -214,16 +262,21 @@ header {
 }
 
 #close-search {
-    margin-left: 12px;
+    margin-left: 15px;
     background-color: var(--color-bg-light);
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+#close-search:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-overlay);
 }
 
 /* REMOVED: @keyframes simpleFade */

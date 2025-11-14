@@ -16,7 +16,7 @@ from werkzeug.utils import secure_filename, safe_join
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from core.utils import get_exe_folder
+from .utils import get_exe_folder
 from config import PORT, TEMP_UPLOAD_DIR
 
 # --- FLASK SETUP ---
@@ -36,13 +36,17 @@ app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=STATIC_DIR, st
 app.config['SECRET_KEY'] = 'dev_key' 
 app.config['ASSETS_DIR'] = ""
 
-# Silence Werkzeug logs
+# --- SILENCE ALL LOGS (The Fix) ---
+# Disable the standard Flask request logger
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR) 
+log.disabled = True # Hard disable
 
 fs = Blueprint('fs', __name__)
-# Increased timeout for stability
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', ping_timeout=3600, ping_interval=25)
+
+# Disable SocketIO internal logs to prevent "write() before start_response"
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading',  
+                    logger=False, engineio_logger=False)
 
 # --- DECORATORS ---
 def login_required(f):
@@ -74,7 +78,11 @@ def index():
         return render_template('upload.html', 
             title=app.config.get('BRAND_TITLE'),
             subtitle=app.config.get('BRAND_SUBTITLE'),
-            logo=app.config.get('BRAND_LOGO_B64'))
+            logo=app.config.get('BRAND_LOGO_B64'),
+            max_size=app.config.get('MAX_UPLOAD_BYTES'),)
+        
+    
+   
     return render_template('admin.html', role=session.get('role'))
 
 @app.route('/login', methods=['GET'])
@@ -114,12 +122,20 @@ def browse_files(subpath):
         for item in sorted(os.listdir(full_path)):
             item_path = os.path.join(full_path, item)
             is_dir = os.path.isdir(item_path)
+            
+            # FAST SIZE CHECK (No recursion)
+            if is_dir:
+                try: count = len(os.listdir(item_path)); size_str = f"{count} items"
+                except: size_str = "--"
+            else:
+                size_str = format_size(os.path.getsize(item_path))
+
             items.append({
                 "name": item,
                 "path": os.path.join(subpath, item).replace('\\', '/'),
                 "is_dir": is_dir,
                 "file_type": 'folder' if is_dir else get_file_type(item),
-                "size": get_file_size(item_path)
+                "size": size_str
             })
         breadcrumbs = []
         if subpath:
@@ -130,34 +146,24 @@ def browse_files(subpath):
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 # --- ASYNC MERGE WORKER ---
-# FIXED: Added socket_id parameter here
 def background_merge(temp_dir, final_path, total_chunks, current_path, socket_id):
-    """ Runs in a separate thread to avoid blocking HTTP response """
     try:
-        # 1. Merge
         temp_final_path = os.path.join(temp_dir, "merged_temp")
-        # Using 64MB buffer for high RAM merge
-        with open(temp_final_path, 'wb', buffering=64*1024*1024) as final_file:
+        with open(temp_final_path, 'wb', buffering=10*1024*1024) as final_file:
             for i in range(total_chunks):
                 chunk_p = os.path.join(temp_dir, f"chunk_{i}")
                 try:
-                    with open(chunk_p, 'rb') as chunk_f:
-                        final_file.write(chunk_f.read())
+                    with open(chunk_p, 'rb') as chunk_f: final_file.write(chunk_f.read())
                     os.remove(chunk_p)
-                except: pass 
+                except: pass
         
-        # 2. Move
         if os.path.exists(final_path): os.remove(final_path)
         shutil.move(temp_final_path, final_path)
-        os.rmdir(temp_dir)
+        shutil.rmtree(temp_dir, ignore_errors=True) # Safer cleanup
 
-        # 3. Emit Success (Unicast to specific user)
         with app.app_context():
             if socket_id:
-                # Only tell the user who uploaded
                 socketio.emit('upload_status', {'status': 'completed'}, to=socket_id)
-            
-            # Tell everyone to refresh the file list
             socketio.emit('reload_data', {'path': current_path})
             
     except Exception as e:
@@ -177,27 +183,35 @@ def upload_chunk():
         file_id = request.form['fileId']
         filename = secure_filename(request.form['filename'])
         current_path = request.form.get('path', '')
-        
-        # NEW: Capture socketId from the form data
         socket_id = request.form.get('socketId')
+        if session.get('role') == 'uploader':
+                    limit = app.config.get('MAX_UPLOAD_BYTES', 0)
+                    total_size = int(request.form.get('totalSize', 0)) # JS must send this
+                    
+                    if limit > 0 and total_size > limit:
+                        return jsonify({"success": False, "error": "File too large."}), 413
 
         temp_dir = os.path.join(TEMP_UPLOAD_DIR, file_id)
-        if not os.path.exists(temp_dir): os.makedirs(temp_dir)
+        if not os.path.exists(temp_dir): 
+            try: os.makedirs(temp_dir)
+            except: pass
 
         chunk_path = os.path.join(temp_dir, f"chunk_{chunk_index}")
-        with open(chunk_path, "wb") as f:
-            f.write(file.read()) 
+        with open(chunk_path, "wb") as f: f.write(file.read()) 
 
-        # Check Completion
-        if len(os.listdir(temp_dir)) == total_chunks:
+        files = [name for name in os.listdir(temp_dir) if name.startswith("chunk_")]
+        if len(files) == total_chunks:
+            # Lock logic to prevent double merge
+            lock_file = os.path.join(temp_dir, ".lock")
+            try:
+                with open(lock_file, "x"): pass
+            except FileExistsError:
+                return jsonify({"success": True, "chunk": chunk_index})
+
             final_dir = get_validated_path(current_path)
             final_path = os.path.join(final_dir, filename)
             
-            # Start background thread with socket_id
-            thread = threading.Thread(
-                target=background_merge, 
-                args=(temp_dir, final_path, total_chunks, current_path, socket_id)
-            )
+            thread = threading.Thread(target=background_merge, args=(temp_dir, final_path, total_chunks, current_path, socket_id))
             thread.start()
             
             return jsonify({"success": True, "merging": True})
@@ -235,7 +249,11 @@ def download_file(filename):
     if session.get('role') == 'uploader': return abort(403)
     try:
         full_path = get_validated_path(filename)
-        if os.path.isdir(full_path): return abort(400)
+        if os.path.isdir(full_path):
+            folder_name = os.path.basename(full_path)
+            temp_zip_base = os.path.join(TEMP_UPLOAD_DIR, folder_name)
+            zip_path = shutil.make_archive(temp_zip_base, 'zip', full_path)
+            return send_from_directory(os.path.dirname(zip_path), os.path.basename(zip_path), as_attachment=True)
         return send_from_directory(os.path.dirname(full_path), os.path.basename(full_path), as_attachment=True)
     except: return abort(404)
 
@@ -265,19 +283,22 @@ def get_file_type(filename):
     if ext in ['.pdf']: return 'pdf'
     return 'file'
 
+def format_size(size_bytes):
+    if size_bytes == 0: return "0 B"
+    size_name = ("B", "KB", "MB", "GB", "TB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_name[i]}"
+
 def get_file_size(path):
     try:
-        sz = os.path.getsize(path)
-        if sz < 1024: return f"{sz} B"
-        elif sz < 1024**2: return f"{round(sz/1024, 1)} KB"
-        elif sz < 1024**3: return f"{round(sz/1024**2, 1)} MB"
-        else: return f"{round(sz/1024**3, 2)} GB"
+        return format_size(os.path.getsize(path))
     except: return "-"
 
 def emit_reload(path):
     socketio.emit('reload_data', {'path': path})
 
-# --- WATCHDOG ---
 class ChangeHandler(FileSystemEventHandler):
     def on_any_event(self, event):
         if ".tmp" in event.src_path or "temp_uploads" in event.src_path or ".git" in event.src_path: return
@@ -303,6 +324,12 @@ def start_server_process(settings):
     app.config['BRAND_LOGO_B64'] = None
 
     logo_path = settings.get('brand_logo')
+    try:
+        mb_limit = int(settings.get('max_upload_size', 0))
+        # Convert MB to Bytes (0 means unlimited)
+        app.config['MAX_UPLOAD_BYTES'] = mb_limit * 1024 * 1024 if mb_limit > 0 else 0
+    except:
+        app.config['MAX_UPLOAD_BYTES'] = 0 # Fallback to unlimited
     if logo_path and os.path.exists(logo_path):
         try:
             with open(logo_path, "rb") as img_file:
@@ -324,5 +351,6 @@ def start_server_process(settings):
     
     try: port = int(settings['port'])
     except: port = 2004
-        
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True, use_reloader=False)
+    
+    # Run server without logs
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True, use_reloader=False, log_output=False)

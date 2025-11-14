@@ -18,6 +18,15 @@
 
         <h1>{{ title }}</h1>
         <p class="subtitle">{{ subtitle }}</p>
+        {% if max_size > 0 %}
+        <p style="color: #3B82F6; font-size: 0.8rem; margin-bottom: 20px;">
+            Max File Size: {{ (max_size / 1024 / 1024)|round|int }} MB
+        </p>
+        {% endif %}
+        <script>
+            window.maxUploadBytes = Number("{{ max_size }}");
+            window.currentState = { path: '' };
+        </script>
 
         <form id="upload-file-form">
             <label for="file-upload" class="custom-file-upload"
@@ -51,6 +60,7 @@
                     style="width: 100%; padding: 15px; font-size: 1rem;">Start Upload</button>
             </div>
         </form>
+
 
         <a href="/logout" class="logout-link">Logout</a>
     </div>

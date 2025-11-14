@@ -49,8 +49,8 @@ class AppGUI(ft.Column):
         header = ft.Row(
             [
                 ft.Row([
-                    ft.Icon(ft.Icons.DIAMOND_OUTLINED, color=Palette.ACCENT, size=24),
-                    ft.Text("Local Hub v2", size=20, weight=ft.FontWeight.BOLD, color=Palette.TEXT_HEAD),
+                    ft.Icon(ft.Icons.WIFI, color=Palette.ACCENT, size=24),
+                    ft.Text("Local File Hub Launcher", size=20, weight=ft.FontWeight.BOLD, color=Palette.TEXT_HEAD),
                 ]),
                 ft.Row([
                     ft.IconButton(
@@ -98,7 +98,7 @@ class AppGUI(ft.Column):
 
         # --- 3. ACCESS ROLES ---
         self.admin_switch = ft.Switch(value=True, on_change=self.toggle_field, active_color=Palette.SUCCESS)
-        self.viewer_switch = ft.Switch(value=False, on_change=self.toggle_field, active_color=Palette.ACCENT)
+        self.viewer_switch = ft.Switch(value=False, on_change=self.toggle_field, active_color=Palette.WARNING)
         self.uploader_switch = ft.Switch(value=False, on_change=self.toggle_field, active_color=Palette.ACCENT)
 
         self.admin_pass_field = self._make_pass_field(DEFAULT_PASSWORD, enabled=True)
@@ -106,10 +106,23 @@ class AppGUI(ft.Column):
         self.uploader_pass_field = self._make_pass_field("Set Uploader Password", enabled=False)
 
         # Customization Dialog
+        # ... inside __init__ ...
+        
+        # Dialog components
         self.custom_title = ft.TextField(label="Page Title", value="File Upload Portal", border_color=Palette.BORDER, bgcolor=Palette.INPUT_BG, text_size=13, border_radius=8)
         self.custom_subtitle = ft.TextField(label="Subtitle", value="Please upload files.", border_color=Palette.BORDER, bgcolor=Palette.INPUT_BG, text_size=13, border_radius=8)
         self.custom_image_path = ft.TextField(label="Logo Path", read_only=True, expand=True, text_size=12, border_color=Palette.BORDER, bgcolor=Palette.INPUT_BG, border_radius=8)
         
+        # NEW: Max Size Field
+        self.max_size_field = ft.TextField(
+            label="Max Upload Size (MB)", 
+            value="0", 
+            suffix_text="MB (0 = Unlimited)",
+            border_color=Palette.BORDER, bgcolor=Palette.INPUT_BG, 
+            text_size=13, border_radius=8,
+            keyboard_type=ft.KeyboardType.NUMBER
+        )
+
         self.logo_picker = ft.FilePicker(on_result=self._on_logo_picked)
         
         self.customize_dialog = ft.AlertDialog(
@@ -119,20 +132,21 @@ class AppGUI(ft.Column):
             content=ft.Column([
                 self.custom_title,
                 self.custom_subtitle,
+                self.max_size_field, # <--- ADDED HERE
                 ft.Row([
                     self.custom_image_path,
                     ft.IconButton(icon=ft.Icons.IMAGE_SEARCH, icon_color=Palette.ACCENT, on_click=lambda _: self.logo_picker.pick_files(allow_multiple=False))
                 ])
-            ], height=220, width=450, spacing=15),
+            ], height=280, width=450, spacing=15), # Increased height
             actions=[ft.TextButton("Save & Close", on_click=self._close_dialog, style=ft.ButtonStyle(color=Palette.ACCENT))],
             actions_alignment=ft.MainAxisAlignment.END,
             shape=ft.RoundedRectangleBorder(radius=12)
         )
 
         self.edit_uploader_btn = ft.IconButton(
-            icon=ft.Icons.EDIT_NOTE_ROUNDED, icon_color=Palette.WARNING, tooltip="Customize Branding",
+            icon=ft.Icons.EDIT_NOTE_ROUNDED, icon_color=Palette.ACCENT, tooltip="Customize Branding",
             on_click=self._open_dialog, visible=False,
-            style=ft.ButtonStyle(bgcolor=ft.Colors.with_opacity(0.1, Palette.WARNING), shape=ft.RoundedRectangleBorder(radius=8))
+            style=ft.ButtonStyle(bgcolor=ft.Colors.with_opacity(0.1, Palette.ACCENT), shape=ft.RoundedRectangleBorder(radius=8))
         )
 
         roles_card = ft.Container(
@@ -250,6 +264,9 @@ class AppGUI(ft.Column):
         if "BRAND_LOGO" in env:
             self.custom_image_path.value = env["BRAND_LOGO"]
 
+        if "MAX_UPLOAD_SIZE" in env:
+            self.max_size_field.value = env["MAX_UPLOAD_SIZE"]
+
     # --- HELPERS ---
     def _make_pass_field(self, hint, enabled):
         return ft.TextField(hint_text=hint, disabled=not enabled, expand=True, border_color=Palette.BORDER, bgcolor=Palette.INPUT_BG, border_radius=8, filled=True, password=True, can_reveal_password=True, text_size=13, height=45, content_padding=10)
@@ -288,8 +305,10 @@ class AppGUI(ft.Column):
             "enable_viewer": self.viewer_switch.value, "viewer_pass": self.viewer_pass_field.value,
             "enable_uploader": self.uploader_switch.value, "uploader_pass": self.uploader_pass_field.value,
             "brand_title": self.custom_title.value, "brand_subtitle": self.custom_subtitle.value, "brand_logo": self.custom_image_path.value,
-            "enable_ngrok": self.ngrok_switch.value, "ngrok_token": self.ngrok_token_field.value
+            "enable_ngrok": self.ngrok_switch.value, "ngrok_token": self.ngrok_token_field.value,
+            "max_upload_size": self.max_size_field.value,
         }
+    
 
     def toggle_field(self, e):
         if e.control == self.admin_switch: self.admin_pass_field.disabled = not e.control.value; self.admin_pass_field.update()

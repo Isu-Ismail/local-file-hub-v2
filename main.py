@@ -30,12 +30,12 @@ log_queue = queue.Queue()
 
 def main(page: ft.Page):
     APP_STATE["flet_page"] = page
-    page.title = "Local Hub v2"
+    page.title = "Local File Hub Launcher"
     page.theme_mode = ft.ThemeMode.DARK
     page.window_width = 950
     page.window_height = 850
     page.padding = 25
-    page.bgcolor = ft.Colors.BLACK
+    page.bgcolor = ft.Colors.BLACK12
     
     # Prevent app from closing when X is clicked, just hide it
     page.window_prevent_close = True
