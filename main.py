@@ -57,6 +57,7 @@ def main(page: ft.Page):
             gui.add_log_line("Error: Please select a folder first.", color="red")
             return
 
+
         try:
             port = int(settings['port'])
             if not 1024 <= port <= 65535: raise ValueError
