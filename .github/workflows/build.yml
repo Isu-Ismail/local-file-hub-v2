@@ -92,4 +92,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            LocalHub_Setup.exe
+           LocalHub_Setup.exe 
