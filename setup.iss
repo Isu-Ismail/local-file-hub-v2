@@ -11,9 +11,7 @@ AppId={{A1B2C3D4-E5F6-7890-ABCD-1234567890AB}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-; Installs to Program Files (64-bit)
 DefaultDirName={autopf}\{#MyAppName}
-; Require Admin rights (like RequestExecutionLevel admin in NSIS)
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
 
@@ -36,25 +34,22 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; 1. The Main Executable (From PyInstaller dist folder)
+; 1. The Main Executable
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
-; 2. Core Dependencies (Must be in root folder when compiling)
+; 2. Core Dependencies
 Source: "ngrok.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-; Start Menu Shortcut
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
-; Desktop Shortcut
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; Cleanup Generated Files (Logs, PIDs, Temp Folders)
 Type: files; Name: "{app}\_server.log"
 Type: files; Name: "{app}\_ngrok.log"
 Type: files; Name: "{app}\server_boot_error.log"
@@ -63,7 +58,6 @@ Type: filesandordirs; Name: "{app}\temp_uploads"
 
 [Code]
 // --- GENERATE .ENV FILE LOGIC ---
-// This function runs after the files are installed
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   EnvContent: String;
@@ -73,25 +67,22 @@ begin
   begin
     EnvPath := ExpandConstant('{app}\.env');
     
-    // Only create if it does not exist (preserve user settings on update)
+    // Only create if it does not exist
     if not FileExists(EnvPath) then
     begin
-      EnvContent := '# Local Hub Configuration File' + #13#10 +
-                    #13#10 +
+      // FIX: All #13#10 are now appended to the end of lines, not starting new ones
+      EnvContent := '# Local Hub Configuration File' + #13#10 + #13#10 +
                     '# --- General ---' + #13#10 +
                     '# PORT = 2004' + #13#10 +
-                    '# FOLDER_PATH = C:\Users\Public\Documents' + #13#10 +
-                    #13#10 +
+                    '# FOLDER_PATH = C:\Users\Public\Documents' + #13#10 + #13#10 +
                     '# --- Passwords ---' + #13#10 +
                     '# ADMIN_PASS = admin' + #13#10 +
                     '# VIEWER_PASS = view' + #13#10 +
-                    '# UPLOADER_PASS = upload' + #13#10 +
-                    #13#10 +
+                    '# UPLOADER_PASS = upload' + #13#10 + #13#10 +
                     '# --- Branding ---' + #13#10 +
                     '# BRAND_TITLE = File Upload Portal' + #13#10 +
                     '# BRAND_SUBTITLE = Please upload files below.' + #13#10 +
-                    '# MAX_UPLOAD_SIZE = 0' + #13#10 +
-                    #13#10 +
+                    '# MAX_UPLOAD_SIZE = 0' + #13#10 + #13#10 +
                     '# --- Network ---' + #13#10 +
                     '# NGROK_AUTH_TOKEN = ' + #13#10;
                     
