@@ -1,4 +1,4 @@
-name: Build Local Hub v2 (Inno Setup)
+name: Build Local Hub v2 Installer
 
 on:
   push:
@@ -13,23 +13,31 @@ jobs:
       contents: write
 
     steps:
+      # 1. Checkout Code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
 
+      # 3. Install Python Dependencies
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
 
+      # 4. Ensure README exists (Required by setup.iss)
       - name: Ensure README exists
-        run: if not exist README.txt echo Local Hub v2 > README.txt
+        run: |
+          if not exist README.txt echo Local Hub v2 > README.txt
         shell: cmd
 
-      # --- 1. BUILD EXE ---
+      # 5. Build Core EXE (LocalHub_v2.exe)
       - name: Build EXE with PyInstaller
         run: |
           python -m PyInstaller ^
@@ -49,14 +57,15 @@ jobs:
             main.py
         shell: cmd
 
-      # --- 2. BUILD INSTALLER (INNO SETUP) ---
-      # This action automatically runs the .iss script
+      # 6. Create Installer (FIXED: Using Valid Inno Setup Action)
       - name: Compile Inno Setup Script
-        uses: minmax/innosetup-action@v1.0.1
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: setup.iss
+          # Optional: Force output to specific folder if needed, but setup.iss handles it
+          # options: /O+ 
 
-      # --- 3. GENERATE TAG & RELEASE ---
+      # 7. Generate Version Tag
       - name: Set up version tag
         id: version
         run: |
@@ -64,10 +73,13 @@ jobs:
           echo "version_tag=$version" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
+      # 8. Upload Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version_tag }}
           name: "Local Hub v2 - Release ${{ steps.version.outputs.version_tag }}"
+          draft: false
+          prerelease: false
           files: |
             Output/LocalHub_Setup.exe
