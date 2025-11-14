@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fabMenu) fabMenu.style.display = 'none';
         if (newFolderBtn) newFolderBtn.style.display = 'none';
         if (newFileBtn) newFileBtn.style.display = 'none';
-        if (navSettings) navSettings.style.display = 'none';
+        // if (navSettings) navSettings.style.display = 'none';
     }
 
     if(fileList) fetchFiles('');

@@ -1,21 +1,26 @@
-name: Build Local Hub v2 Installer
+name: Build Local Hub v2 (Compressed Installer)
 
 on:
   push:
     branches:
       - master
-  
+
 jobs:
   build-windows-release:
+    # Only runs if commit message contains "build"
     if: "contains(github.event.head_commit.message, 'build')"
+    
     runs-on: windows-latest
+    
     permissions:
       contents: write
 
     steps:
+      # 1. Checkout Code (Gets main.py, ngrok.exe, icon.ico, assets/)
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -23,37 +28,61 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'requirements.txt'
 
-      - name: Install Python dependencies
+      # 3. Install Python Libraries
+      - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
-      # --- FIX 1: Download Ngrok (Because it is likely missing in the repo) ---
-      - name: Download Ngrok
+      # 4. Download & Setup UPX (The Compressor)
+      - name: Setup UPX
         run: |
-          curl -L -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip
-          tar -xf ngrok.zip
-          del ngrok.zip
+          echo Downloading UPX...
+          curl -L -o upx.zip https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-win64.zip
+          echo Extracting UPX...
+          tar -xf upx.zip
+          echo Moving upx.exe to root...
+          copy upx-4.2.4-win64\upx.exe .
+          del upx.zip
         shell: cmd
 
-      # --- FIX 2: Run Batch with 'python' check ---
-      - name: Build executable (Core)
+      # 5. Ensure README exists (Safe fallback)
+      - name: Create README if missing
         run: |
-          :: Run the batch file to build dist/LocalHub_v2.exe
-          .\BUILD_EXE.bat
+          if not exist README.txt echo Local Hub v2 > README.txt
         shell: cmd
 
-      # --- Debug Step: Check if dist exists ---
-      - name: Check Build Output
+      # 6. Build the Compressed EXE
+      # Note: We run the command directly here to ensure UPX flags are perfect
+      - name: Build Compressed EXE
         run: |
-          if exist dist\LocalHub_v2.exe ( echo Build Successful ) else ( echo Build Failed & dir & exit 1 )
+          python -m PyInstaller ^
+            --noconfirm ^
+            --onefile ^
+            --windowed ^
+            --clean ^
+            --name "LocalHub_v2" ^
+            --icon "icon.ico" ^
+            --upx-dir "." ^
+            --add-data "assets;assets" ^
+            --hidden-import "engineio.async_drivers.threading" ^
+            --hidden-import "flet" ^
+            --hidden-import "eventlet" ^
+            --hidden-import "PIL" ^
+            --exclude-module "tkinter" ^
+            --exclude-module "matplotlib" ^
+            --exclude-module "numpy" ^
+            --exclude-module "pandas" ^
+            main.py
         shell: cmd
 
-      # --- FIX 3: Removed '#' comments to prevent syntax error ---
-      - name: Create installer with NSIS
+      # 7. Build the Installer (NSIS)
+      # This bundles: dist\LocalHub_v2.exe + ngrok.exe + icon.ico + README.txt
+      - name: Create Setup with NSIS
         run: |
           .\.tools\NSIS\makensis.exe setup.nsi
         shell: cmd
 
+      # 8. Generate Version Tag
       - name: Set up version tag
         id: version
         run: |
@@ -61,11 +90,12 @@ jobs:
           echo "version_tag=$version" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
+      # 9. Upload Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version_tag }}
-          name: "Local Hub v2 - Release ${{ steps.version.outputs.version_tag }}"
+          name: "Local Hub v2 - Compressed Release ${{ steps.version.outputs.version_tag }}"
           draft: false
           prerelease: false
           files: |

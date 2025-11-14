@@ -272,8 +272,24 @@ class AppGUI(ft.Column):
         return ft.TextField(hint_text=hint, disabled=not enabled, expand=True, border_color=Palette.BORDER, bgcolor=Palette.INPUT_BG, border_radius=8, filled=True, password=True, can_reveal_password=True, text_size=13, height=45, content_padding=10)
 
     def _make_copy_field(self, value):
-        text_field = ft.TextField(value=value, read_only=True, expand=True, border_color=Palette.BORDER, bgcolor=Palette.INPUT_BG, border_radius=8, filled=True, text_size=13, height=45, content_padding=10)
-        text_field.suffix = ft.IconButton(icon=ft.Icons.COPY, icon_size=16, tooltip="Copy", on_click=lambda e: self._copy_text(text_field.value))
+        text_field = ft.TextField(
+            value=value, 
+            read_only=True, 
+            expand=True, 
+            border_color=Palette.BORDER, 
+            bgcolor=Palette.INPUT_BG, 
+            border_radius=8, 
+            filled=True, 
+            text_size=13, 
+            # FIX: Removed height, used pure padding for centering
+            content_padding=ft.padding.all(15), 
+            suffix=ft.IconButton(
+                icon=ft.Icons.COPY, 
+                icon_size=16, 
+                tooltip="Copy", 
+                on_click=lambda e: self._copy_text(e.control.parent.value)
+            )
+        )
         return text_field
 
     def _copy_text(self, text):
