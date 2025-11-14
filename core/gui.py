@@ -1,6 +1,9 @@
 import flet as ft
 import pyperclip # Need this for clipboard action
 
+
+from .utils import read_env_file 
+
 try:
     from config import DEFAULT_PASSWORD, PORT
 except ImportError:
@@ -201,6 +204,51 @@ class AppGUI(ft.Column):
             ft.Container(content=ft.Column([header, ft.Divider(color="transparent", height=10), path_section, roles_card, network_card, url_section, ft.Text("Logs", weight=ft.FontWeight.BOLD), self.log_container], spacing=20), padding=ft.padding.only(bottom=20)),
             bottom_bar
         ]
+        
+        self._apply_env_config()
+
+    def _apply_env_config(self):
+        """ Reads .env and populates GUI fields automatically """
+        env = read_env_file()
+        
+        # 1. Folder Path
+        if "FOLDER_PATH" in env:
+            self.path_field.value = env["FOLDER_PATH"]
+            
+        # 2. Port
+        if "PORT" in env:
+            self.port_field.value = env["PORT"]
+
+        # 3. Roles & Passwords
+        if "ADMIN_PASS" in env:
+            self.admin_pass_field.value = env["ADMIN_PASS"]
+            
+        if "VIEWER_PASS" in env:
+            self.viewer_pass_field.value = env["VIEWER_PASS"]
+            self.viewer_switch.value = True
+            self.viewer_pass_field.disabled = False
+
+        if "UPLOADER_PASS" in env:
+            self.uploader_pass_field.value = env["UPLOADER_PASS"]
+            self.uploader_switch.value = True
+            self.uploader_pass_field.disabled = False
+            self.edit_uploader_btn.visible = True # Show the edit button
+
+        # 4. Ngrok Token
+        if "NGROK_AUTH_TOKEN" in env:
+            self.ngrok_token_field.value = env["NGROK_AUTH_TOKEN"]
+            self.ngrok_switch.value = True
+            self.ngrok_token_field.disabled = False
+
+        # --- 5. BRANDING (NEW) ---
+        if "BRAND_TITLE" in env:
+            self.custom_title.value = env["BRAND_TITLE"]
+            
+        if "BRAND_SUBTITLE" in env:
+            self.custom_subtitle.value = env["BRAND_SUBTITLE"]
+            
+        if "BRAND_LOGO" in env:
+            self.custom_image_path.value = env["BRAND_LOGO"]
 
     # --- HELPERS ---
     def _make_pass_field(self, hint, enabled):
