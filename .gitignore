@@ -5,5 +5,4 @@
 /dist
 /build
 *.spec
-*.nsi
-*.png
+

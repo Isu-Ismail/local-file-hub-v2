@@ -1,0 +1,8 @@
+flet
+flask
+flask-socketio
+watchdog
+pystray
+pyperclip
+Pillow
+pyinstaller
