@@ -3,63 +3,70 @@ name: Build Local Hub v2 Installer
 on:
   push:
     branches:
-      - master # Or "master", or whichever branch you want to build from
+      - master
 
 jobs:
   build-windows-release:
-    # Only runs if the commit message contains "build"
     if: "contains(github.event.head_commit.message, 'build')"
-    
     runs-on: windows-latest
-    
-    # Give the job permission to create a GitHub Release
     permissions:
       contents: write
 
     steps:
-      # 1. Get your code (and .tools/NSIS)
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Flet is stable on 3.11
+          python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: 'requirements.txt'
 
-      # 3. Install Python packages
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
 
-      # 4. Build the .exe (using your batch file)
-      - name: Build executable with PyInstaller
+      # --- FIX 1: Download Ngrok (Because it is likely missing in the repo) ---
+      - name: Download Ngrok
         run: |
-          cmd /c ".\BUILD_EXE.bat"
+          curl -L -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip
+          tar -xf ngrok.zip
+          del ngrok.zip
         shell: cmd
 
-      # 5. Build the setup.exe with your local NSIS
+      # --- FIX 2: Run Batch with 'python' check ---
+      - name: Build executable (Core)
+        run: |
+          :: Run the batch file to build dist/LocalHub_v2.exe
+          .\BUILD_EXE.bat
+        shell: cmd
+
+      # --- Debug Step: Check if dist exists ---
+      - name: Check Build Output
+        run: |
+          if exist dist\LocalHub_v2.exe ( echo Build Successful ) else ( echo Build Failed & dir & exit 1 )
+        shell: cmd
+
+      # --- FIX 3: Removed '#' comments to prevent syntax error ---
       - name: Create installer with NSIS
         run: |
-          # We use a relative path, which is reliable in GitHub Actions
           .\.tools\NSIS\makensis.exe setup.nsi
         shell: cmd
 
-      # 6. Create a version number for this build (e.g., v1.0.12)
       - name: Set up version tag
         id: version
         run: |
-          $version = "v1.0.${{ github.run_number }}"
+          $version = "v2.0.${{ github.run_number }}"
           echo "version_tag=$version" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      # 7. Create the GitHub Release and upload the installer
-      - name: Create GitHub Release and Upload Installer
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version_tag }}
-          name: "Local Hub Release ${{ steps.version.outputs.version_tag }}"
+          name: "Local Hub v2 - Release ${{ steps.version.outputs.version_tag }}"
+          draft: false
+          prerelease: false
           files: |
             LocalHub_Setup.exe

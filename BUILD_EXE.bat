@@ -16,7 +16,7 @@ DEL /F /Q "*.spec" 2>NUL
 :: REMOVED: --add-binary "ngrok.exe;." (We will let NSIS handle this)
 :: KEPT: --add-data "assets;assets" (Keep HTML inside so user can't break UI)
 
-py -m PyInstaller ^
+python -m PyInstaller ^
     --noconfirm ^
     --onefile ^
     --windowed ^
