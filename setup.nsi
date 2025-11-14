@@ -14,8 +14,8 @@
 !define MUI_ICON "icon.ico" 
 !define MUI_UNICON "icon.ico"
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "icon.ico" ; Optional: Use icon as header image if valid bitmap
-!define MUI_WELCOMEFINISHPAGE_BITMAP "icon.ico" ; Optional side image
+!define MUI_HEADERIMAGE_BITMAP "header.bmp" 
+!define MUI_WELCOMEFINISHPAGE_BITMAP "sidebar.bmp"
 
 ; --- Installation Info ---
 Name "${APP_NAME}"
