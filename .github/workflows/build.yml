@@ -7,20 +7,15 @@ on:
 
 jobs:
   build-windows-release:
-    # Only runs if the commit message contains "build"
     if: "contains(github.event.head_commit.message, 'build')"
-    
     runs-on: windows-latest
-    
     permissions:
       contents: write
 
     steps:
-      # 1. Get Code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -28,19 +23,20 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'requirements.txt'
 
-      # 3. Install Dependencies
-      - name: Install Python packages
+      - name: Install Python Dependencies
         run: |
           pip install -r requirements.txt
 
-      # 4. Create README (Critical for NSIS)
+      # --- FIX: Install NSIS via Chocolatey (Guarantees path) ---
+      - name: Install NSIS
+        run: choco install nsis
+
       - name: Ensure README exists
         run: |
           if not exist README.txt echo Local Hub v2 > README.txt
         shell: cmd
 
-      # 5. Build EXE (NO UPX - STABLE MODE)
-      # We run the command directly here to ignore your local .bat file (which might have UPX enabled)
+      # --- Build EXE (No UPX) ---
       - name: Build Stable EXE
         run: |
           python -m PyInstaller ^
@@ -62,14 +58,12 @@ jobs:
             main.py
         shell: cmd
 
-      # 6. Create Installer (Using GitHub's Built-in NSIS)
-      # We point directly to the system makensis to avoid path issues with your local tools
+      # --- Build Installer (Using global makensis command) ---
       - name: Create Installer with NSIS
         run: |
-          "C:\Program Files (x86)\NSIS\makensis.exe" setup.nsi
+          makensis setup.nsi
         shell: cmd
 
-      # 7. Version Tag
       - name: Set up version tag
         id: version
         run: |
@@ -77,12 +71,11 @@ jobs:
           echo "version_tag=$version" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      # 8. Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version_tag }}
-          name: "Local Hub v2 - Stable Release ${{ steps.version.outputs.version_tag }}"
+          name: "Local Hub v2 - Release ${{ steps.version.outputs.version_tag }}"
           draft: false
           prerelease: false
           files: |
