@@ -1,0 +1,1 @@
+python -m PyInstaller main.py --console --onedir --name LocalHubV2 --add-data "assets;assets" --add-data "core;core" --add-data "config.py;." --collect-all flet --collect-all flask --collect-all flask_socketio --collect-all socketio --collect-all werkzeug --collect-all pyperclip --exclude-module eventlet --exclude-module gevent --exclude-module gevent-websocket --log-level DEBUG

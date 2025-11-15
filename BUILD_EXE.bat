@@ -1,67 +1,35 @@
 @echo off
-TITLE Building Local Hub v2 (Compressed)
-CLS
+echo ============================
+echo  Building LocalHub v2
+echo ============================
 
-ECHO ========================================================
-ECHO   Local Hub v2 Builder (High Compression)
-ECHO ========================================================
-ECHO.
+REM ---- CLEAN OLD BUILD ----
+rmdir /s /q build 2>nul
+rmdir /s /q dist 2>nul
+del LocalHubV2.spec 2>nul
 
-:: 1. Check for UPX (Required for compression)
-IF NOT EXIST "upx.exe" (
-    ECHO [WARNING] upx.exe not found!
-    ECHO Download UPX from https://github.com/upx/upx/releases
-    ECHO and place 'upx.exe' in this folder to reduce file size by ~50%%.
-    PAUSE
-)
-
-IF NOT EXIST "icon.ico" (
-    ECHO [ERROR] icon.ico not found!
-    PAUSE
-    EXIT /B
-)
-
-ECHO   Cleaning up...
-RMDIR /S /Q "build" 2>NUL
-RMDIR /S /Q "dist" 2>NUL
-DEL /F /Q "*.spec" 2>NUL
-
-ECHO.
-ECHO   Starting PyInstaller...
-ECHO ========================================================
-
-:: --- BUILD COMMAND ---
-:: --upx-dir ".": Uses the upx.exe in the current folder
-:: --exclude-module: Removes unused heavy libraries
-
-python -m PyInstaller ^
+REM ---- RUN PYINSTALLER ----
+pyinstaller ^
     --noconfirm ^
     --onefile ^
-    --windowed ^
-    --clean ^
-    --name "LocalHub_v2" ^
-    --icon "icon.ico" ^
-    --upx-dir "." ^
+    --noconsole ^
+    --name LocalHubV2 ^
     --add-data "assets;assets" ^
-    --hidden-import "engineio.async_drivers.threading" ^
-    --hidden-import "flet" ^
-    --hidden-import "eventlet" ^
-    --hidden-import "PIL" ^
-    --exclude-module "tkinter" ^
-    --exclude-module "matplotlib" ^
-    --exclude-module "numpy" ^
-    --exclude-module "pandas" ^
-    --exclude-module "scipy" ^
+    --add-data "core;core" ^
+    --add-data "temp_uploads;temp_uploads" ^
+    --hidden-import flet ^
+    --hidden-import flask ^
+    --hidden-import flask_socketio ^
+    --hidden-import engineio ^
+    --hidden-import eventlet ^
+    --hidden-import eventlet.wsgi ^
+    --hidden-import werkzeug ^
+    --hidden-import config ^
+    --hidden-import pyperclip ^
     main.py
 
-ECHO.
-ECHO ========================================================
-IF EXIST "dist\LocalHub_v2.exe" (
-    ECHO   SUCCESS! 
-    ECHO   Compressed Core EXE created: dist\LocalHub_v2.exe
-) ELSE (
-    ECHO   BUILD FAILED.
-)
-ECHO ========================================================
-ECHO.
-PAUSE
+echo.
+echo =================================
+echo       BUILD COMPLETED
+echo =================================
+pause

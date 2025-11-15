@@ -1,205 +1,426 @@
-# root/main.py
-import sys
-import os
+# ============================================================
+# LocalHub v2 - FINAL MAIN.PY (EXE SAFE + SINGLE INSTANCE)
+# ============================================================
+
 import multiprocessing
+multiprocessing.freeze_support()
+
+import os
+import sys
 import json
-import traceback 
-import base64 # <--- CRITICAL IMPORT
-
-# 1. CRITICAL: Handle Freeze Support
-if __name__ == "__main__":
-    multiprocessing.freeze_support()
-
-# 2. SERVER MODE CHECK (The Worker Process)
-if len(sys.argv) > 1 and sys.argv[1] == "--server-mode":
-    try:
-        # --- THE FIX: DECODE ARGUMENTS ---
-        # We receive a Base64 string. We must decode it back to JSON
-        # so core.server can read it normally.
-        encoded_settings = sys.argv[2]
-        decoded_json = base64.b64decode(encoded_settings).decode('utf-8')
-        
-        # Overwrite sys.argv[2] so the server module sees raw JSON as it expects
-        sys.argv[2] = decoded_json
-        
-        from core.server import run_production_server
-        run_production_server()
-        
-    except Exception as e:
-        with open("server_boot_error.log", "w") as log_file:
-            log_file.write("CRITICAL SERVER ERROR:\n")
-            traceback.print_exc(file=log_file)
-    
-    sys.exit(0)
-
-# --- GUI MODE STARTS HERE ---
-import flet as ft
-import threading
-import queue
 import time
-import subprocess
+import queue
 import shutil
+import traceback
+import threading
+import subprocess
+import base64
+import signal  # <-- NEW: for POSIX process group kill
 
-from core.utils import LogRedirector, get_exe_folder
-from config import PORT 
-from core.gui import AppGUI
-from core.services import get_local_ip, start_ngrok_background, get_ngrok_url
+# ============================================================
+# SINGLE INSTANCE LOCK (NO MORE STALE LOCK FILES)
+# ============================================================
 
-# --- Global App State ---
+def acquire_single_instance_lock():
+    if os.name == "nt":
+        # Windows global mutex
+        import ctypes
+        import ctypes.wintypes
+        mutex = ctypes.windll.kernel32.CreateMutexW(
+            None,
+            ctypes.wintypes.BOOL(True),
+            "LocalHubV2_SingleInstance"
+        )
+        if not mutex:
+            return False
+        if ctypes.windll.kernel32.GetLastError() == 183:
+            # ERROR_ALREADY_EXISTS
+            return False
+        return True
+    else:
+        # Linux/Mac POSIX flock
+        import fcntl
+        global _single_instance_file
+        lock_path = "/tmp/localhubv2.lock"
+        _single_instance_file = open(lock_path, "w")
+        try:
+            fcntl.flock(_single_instance_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except IOError:
+            return False
+
+
+# ============================================================
+# SAFE IMPORT HELPER
+# ============================================================
+
+def try_import(path: str, attr: str | None = None):
+    try:
+        module = __import__(path, fromlist=["*"])
+        return getattr(module, attr) if attr else module
+    except Exception:
+        with open("fatal_import_error.log", "w", encoding="utf-8") as f:
+            f.write(f"IMPORT FAILED: {path}\n")
+            traceback.print_exc(file=f)
+        print("Import error. See fatal_import_error.log")
+        sys.exit(1)
+
+
+# ============================================================
+# IMPORT MODULES
+# ============================================================
+
+ft = try_import("flet")
+LogRedirector = try_import("core.utils", "LogRedirector")
+get_exe_folder = try_import("core.utils", "get_exe_folder")
+PORT = try_import("config", "PORT")
+AppGUI = try_import("core.gui", "AppGUI")
+get_local_ip = try_import("core.services", "get_local_ip")
+start_ngrok_background = try_import("core.services", "start_ngrok_background")
+get_ngrok_url = try_import("core.services", "get_ngrok_url")
+
+
+# ============================================================
+# GLOBAL STATE
+# ============================================================
+
 APP_STATE = {
-    "server_process": None, 
-    "ngrok_process": None
+    "server_process": None,
+    "ngrok_process": None,
 }
+log_queue: "queue.Queue[str]" = queue.Queue()
 
-log_queue = queue.Queue()
+
+# ============================================================
+# EXECUTABLE LAUNCHER
+# ============================================================
+
+def get_launcher_executable():
+    if getattr(sys, "frozen", False):
+        # running as EXE
+        return sys.argv[0]
+    # running as script
+    return [sys.executable, os.path.abspath(__file__)]
+
+
+# ============================================================
+# PROCESS KILL HELPER (KILL TREE)
+# ============================================================
+
+def kill_process_tree(proc):
+    """
+    Silently kill a subprocess and its children, without flashing a console window.
+    Works for:
+      - server_process (Flask + Werkzeug + Watchdog)
+      - ngrok_process
+    """
+    if not proc:
+        return
+
+    try:
+        pid = proc.pid
+    except Exception:
+        return
+
+    # --------------------------
+    # WINDOWS (silent kill)
+    # --------------------------
+    if os.name == "nt":
+        try:
+            # Use Windows API to kill without spawning console
+            import ctypes
+            PROCESS_TERMINATE = 0x0001
+            handle = ctypes.windll.kernel32.OpenProcess(PROCESS_TERMINATE, False, pid)
+            if handle:
+                ctypes.windll.kernel32.TerminateProcess(handle, -1)
+                ctypes.windll.kernel32.CloseHandle(handle)
+                return
+        except Exception:
+            pass
+
+        # Fallback: silent terminate
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+        return
+
+    # --------------------------
+    # POSIX (Linux/Mac)
+    # --------------------------
+    try:
+        pgid = os.getpgid(pid)
+        os.killpg(pgid, signal.SIGTERM)
+    except Exception:
+        try:
+            proc.terminate()
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+
+
+# ============================================================
+# FLET APPLICATION
+# ============================================================
 
 def main(page: ft.Page):
+
     page.title = "Local Hub v2"
     page.theme_mode = ft.ThemeMode.DARK
     page.window_width = 950
     page.window_height = 850
     page.padding = 25
-    page.bgcolor = ft.Colors.BLACK
     page.window_prevent_close = True
-    
-    try: page.window_icon = "icon.png" 
-    except: pass
 
-    # --- 1. Setup ---
-    def on_browse_result(e: ft.FilePickerResultEvent):
-        if e.path:
-            gui.path_field.value = e.path
-            gui.path_field.update()
-    
-    file_picker = ft.FilePicker(on_result=on_browse_result)
-    page.overlay.append(file_picker)
-    
-    def minimize_app(e):
-        page.window_minimized = True
-        page.update()
+    # Load icon safely in EXE
+    try:
+        icon_path = os.path.join(get_exe_folder(), "assets", "icon.png")
+        page.window_icon = icon_path
+    except Exception:
+        pass
 
-    # --- 2. SERVER LOGIC ---
+    # --------------------------------------------------------
+    # READ SERVER PROCESS OUTPUT
+    # --------------------------------------------------------
+
+    def read_server_output():
+        proc = APP_STATE["server_process"]
+        if not proc:
+            return
+        while proc.poll() is None:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            log_queue.put(line.rstrip())
+        log_queue.put("Server process stopped.")
+
+    # --------------------------------------------------------
+    # START SERVER LOGIC
+    # --------------------------------------------------------
+
     def start_server_logic(e=None):
         settings = gui.get_settings()
-        
-        if not settings['folder_path']:
-            gui.add_log_line("Error: Please select a folder first.", color="red")
+
+        if not settings.get("folder_path"):
+            gui.add_log_line("Error: Select a folder", color="red")
             return
 
-        try: port = int(settings['port'])
-        except: port = PORT; settings['port'] = port
+        try:
+            port = int(settings.get("port", PORT))
+        except Exception:
+            port = PORT
 
         gui.set_server_state(is_running=True)
-        gui.add_log_line("Initializing Standard Engine...", color="cyan")
-        
+        gui.add_log_line("Starting server...", color="cyan")
+
         local_ip = get_local_ip()
         gui.set_urls(local_url=f"http://{local_ip}:{port}", public_url="Waiting...")
-        gui.add_log_line(f"Local Network: http://{local_ip}:{port}", color="green")
+        gui.add_log_line(f"Local: http://{local_ip}:{port}", color="green")
 
-        # --- LAUNCH SERVER AS SEPARATE PROCESS ---
-        
-        # Prepare Settings: Convert JSON to Base64 to prevent Argument Splitting
+        # Encode settings
         json_str = json.dumps(settings)
-        b64_settings = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
+        encoded = base64.b64encode(json_str.encode()).decode()
 
-        if getattr(sys, 'frozen', False):
-            executable = sys.executable 
-            cmd = [executable, "--server-mode", b64_settings]
+        launcher = get_launcher_executable()
+        cmd = (
+            launcher + ["--server-mode", encoded]
+            if isinstance(launcher, list)
+            else [launcher, "--server-mode", encoded]
+        )
+
+        # --- IMPORTANT: create process group so we can kill everything later
+        creationflags = 0
+        popen_kwargs = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.STDOUT,
+            "stdin": subprocess.DEVNULL,
+            "text": True,
+            "bufsize": 1,
+            "cwd": get_exe_folder(),
+        }
+
+        if os.name == "nt":
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(
+                subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+            )
+            popen_kwargs["creationflags"] = creationflags
         else:
-            executable = sys.executable
-            script_path = os.path.abspath(__file__)
-            cmd = [executable, script_path, "--server-mode", b64_settings]
+            # new session -> own process group on POSIX
+            popen_kwargs["start_new_session"] = True
 
         try:
-            server_proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1, 
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                cwd=get_exe_folder()
-            )
+            server_proc = subprocess.Popen(cmd, **popen_kwargs)
             APP_STATE["server_process"] = server_proc
         except Exception as e:
-             gui.add_log_line(f"Failed to spawn process: {e}", color="red")
-             gui.set_server_state(is_running=False)
-             return
-        
-        def read_server_output():
-            while APP_STATE["server_process"] and APP_STATE["server_process"].poll() is None:
-                try:
-                    line = APP_STATE["server_process"].stdout.readline()
-                    if line: log_queue.put(line.strip())
-                except: break
-            gui.add_log_line("Server process stopped.", color="orange")
+            gui.add_log_line("Server spawn failed", color="red")
+            with open("server_spawn_error.log", "w", encoding="utf-8") as f:
+                f.write("SERVER SPAWN ERROR\n")
+                f.write(str(e) + "\n")
+                traceback.print_exc(file=f)
+            gui.set_server_state(is_running=False)
+            return
 
+        # capture early crash
+        def capture_initial_errors():
+            time.sleep(1)
+            if server_proc.poll() is not None:
+                output = server_proc.stdout.read()
+                with open("server_crash.log", "w", encoding="utf-8") as f:
+                    f.write(output or "(no output)")
+                gui.add_log_line("Server crashed. See server_crash.log", color="red")
+
+        threading.Thread(target=capture_initial_errors, daemon=True).start()
         threading.Thread(target=read_server_output, daemon=True).start()
 
-        # --- START NGROK ---
-        if settings['enable_ngrok']:
+        # Optional Ngrok
+        if settings.get("enable_ngrok"):
             gui.add_log_line("Starting Ngrok...", color="purple")
+
             def run_ngrok():
-                proc = start_ngrok_background(port, settings['ngrok_token'])
-                if not proc:
-                    gui.add_log_line("Ngrok failed to start.", color="red"); return
-                
+                proc = start_ngrok_background(port, settings.get("ngrok_token", ""))
                 APP_STATE["ngrok_process"] = proc
-                for _ in range(10):
+                if not proc:
+                    gui.add_log_line("Ngrok failed", color="red")
+                    return
+
+                # Note: ngrok process itself should be started with CREATE_NEW_PROCESS_GROUP
+                # or start_new_session inside start_ngrok_background for best kill behavior.
+
+                for _ in range(20):
                     time.sleep(1)
-                    if not APP_STATE["ngrok_process"]: break
                     url = get_ngrok_url()
                     if url:
                         gui.set_urls(local_url=f"http://{local_ip}:{port}", public_url=url)
-                        gui.add_log_line(f"Ngrok Online: {url}", color="green")
+                        gui.add_log_line(f"Ngrok: {url}", color="green")
                         return
-                gui.add_log_line("Ngrok timeout.", color="red")
+                gui.add_log_line("Ngrok timeout", color="red")
+
             threading.Thread(target=run_ngrok, daemon=True).start()
         else:
             gui.set_urls(local_url=f"http://{local_ip}:{port}", public_url="Disabled")
 
-    def stop_server_logic(hard_exit=False):
-        if not hard_exit: gui.add_log_line("Stopping services...", color="red")
-        
+    # --------------------------------------------------------
+    # STOP SERVER
+    # --------------------------------------------------------
+
+    def stop_server_logic(e=None):
+        gui.add_log_line("Stopping services...", color="red")
+
+        # --- Stop Ngrok completely ---
         if APP_STATE["ngrok_process"]:
-            try: APP_STATE["ngrok_process"].terminate()
-            except: pass
+            try:
+                kill_process_tree(APP_STATE["ngrok_process"])
+            except Exception:
+                pass
             APP_STATE["ngrok_process"] = None
 
-        if APP_STATE["server_process"]:
+        # --- Stop server completely (Flask + Watchdog + threads) ---
+        proc = APP_STATE["server_process"]
+        if proc:
             try:
-                subprocess.run(["taskkill", "/F", "/PID", str(APP_STATE["server_process"].pid), "/T"], 
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except: pass
+                kill_process_tree(proc)
+            except Exception:
+                pass
             APP_STATE["server_process"] = None
 
-        if hard_exit:
-            try: subprocess.run(["taskkill", "/F", "/PID", str(os.getpid()), "/T"], stdout=subprocess.DEVNULL)
-            except: pass
-            sys.exit(0)
-        
         gui.set_server_state(is_running=False)
-        gui.set_urls(local_url="", public_url="")
-        gui.add_log_line("Server Offline.", color="red")
+        gui.set_urls("Offline", "Unavailable")
+        gui.add_log_line("Server Offline", color="red")
 
-    def on_window_event(e):
-        if e.data == "close": stop_server_logic(hard_exit=True)
+    # --------------------------------------------------------
+    # FILE PICKER
+    # --------------------------------------------------------
 
-    page.on_window_event = on_window_event
-    gui = AppGUI(on_start=start_server_logic, on_stop=lambda e: stop_server_logic(False), on_browse=lambda e: file_picker.get_directory_path(), on_minimize=minimize_app)
+    def on_browse_result(e: ft.FilePickerResultEvent):
+        if e.path:
+            gui.path_field.value = e.path
+            gui.path_field.update()
+
+    picker = ft.FilePicker(on_result=on_browse_result)
+    page.overlay.append(picker)
+
+    def on_browse_click(e):
+        picker.get_directory_path()
+
+    def on_minimize(e):
+        page.window_minimized = True
+        page.update()
+
+    # --------------------------------------------------------
+    # GUI SETUP
+    # --------------------------------------------------------
+
+    gui = AppGUI(
+        on_start=start_server_logic,
+        on_stop=stop_server_logic,
+        on_browse=on_browse_click,
+        on_minimize=on_minimize,
+    )
     page.add(ft.Container(content=gui, expand=True))
+
+    # --------------------------------------------------------
+    # LOG POLLING THREAD
+    # --------------------------------------------------------
 
     def poll_logs():
         while True:
             try:
                 msg = log_queue.get_nowait()
-                if msg: gui.add_log_line(msg, color="white")
-            except queue.Empty: time.sleep(0.1)
+                gui.add_log_line(msg)
+            except queue.Empty:
+                time.sleep(0.1)
+
     threading.Thread(target=poll_logs, daemon=True).start()
 
-if __name__ == "__main__":
-    try: shutil.rmtree(os.path.join(get_exe_folder(), "temp_uploads"), ignore_errors=True)
-    except: pass
-    ft.app(target=main, assets_dir="assets")
 
-    
+# ============================================================
+# ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+
+    # ------------------------------
+    # SERVER MODE (child process)
+    # ------------------------------
+    if len(sys.argv) > 1 and sys.argv[1] == "--server-mode":
+        try:
+            encoded = sys.argv[2]
+            if encoded.strip().startswith("{"):
+                decoded = encoded
+            else:
+                decoded = base64.b64decode(encoded).decode()
+            sys.argv[2] = decoded
+            run_server = try_import("core.server", "run_production_server")
+            run_server()
+        except Exception as e:
+            with open("server_boot_error.log", "w", encoding="utf-8") as f:
+                f.write("BOOT ERROR\n")
+                f.write(str(e) + "\n")
+                traceback.print_exc(file=f)
+        sys.exit(0)
+
+    # ------------------------------
+    # GUI MODE (top-level)
+    # ------------------------------
+
+    # single instance check
+    if not acquire_single_instance_lock():
+        print("Another LocalHubV2 instance is running.")
+        sys.exit(0)
+
+    # cleanup temp folder
+    try:
+        shutil.rmtree(os.path.join(get_exe_folder(), "temp_uploads"), ignore_errors=True)
+    except Exception:
+        pass
+
+    ft.app(target=main, assets_dir="assets")

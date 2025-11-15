@@ -5,15 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Local File Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
             --color-bg-dark: #0D1117;
             --color-bg-medium: #161B22;
             --color-border: #30363D;
-            --color-text-primary: #C9D1D9;
+            --color-text-primary: #ffffff;
             --color-text-secondary: #8B949E;
-            --color-blue-primary: #2F81F7;
-            --color-blue-hover: #388BFF;
+            --color-blue-primary: #58A6FF;
+            /* Slightly brighter blue */
+            --color-blue-hover: #79C0FF;
             --color-red-primary: #DA3633;
             --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
@@ -35,76 +37,116 @@
         .login-container {
             background-color: var(--color-bg-medium);
             border: 1px solid var(--color-border);
-            border-radius: 12px;
+            border-radius: 16px;
+            /* Slightly more rounded */
             width: 90%;
-            max-width: 340px;
-            padding: 32px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            max-width: 360px;
+            /* Slightly wider */
+            padding: 40px;
+            /* Increased padding */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            /* Stronger shadow */
+            transition: transform 0.3s ease;
+        }
+
+        /* Simple hover effect on container for style */
+        .login-container:hover {
+            transform: translateY(-2px);
         }
 
         h1 {
-            font-size: 1.5em;
+            font-size: 1.6em;
+            /* Slightly larger */
+            font-weight: 700;
+            /* Bolder */
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .header-icon {
+            color: var(--color-blue-primary);
+            font-size: 1.3em;
         }
 
         .login-form {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 20px;
+            /* Increased gap */
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
+            /* Slightly reduced gap between label and input */
         }
 
         .form-group label {
             font-weight: 500;
             color: var(--color-text-secondary);
+            font-size: 0.95em;
         }
 
         .form-group input {
             background-color: var(--color-bg-dark);
             border: 1px solid var(--color-border);
             border-radius: 8px;
-            padding: 14px;
+            padding: 14px 18px;
+            /* Increased horizontal padding */
             font-size: 1em;
             color: var(--color-text-primary);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input::placeholder {
+            color: var(--color-text-secondary);
+            opacity: 0.6;
         }
 
         .form-group input:focus {
             outline: none;
             border-color: var(--color-blue-primary);
-            box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.3);
+            box-shadow: 0 0 0 1px var(--color-blue-primary), 0 0 0 4px rgba(88, 166, 255, 0.2);
+            /* Clearer focus ring */
         }
 
         .login-button {
             background-color: var(--color-blue-primary);
-            color: white;
+            color: var(--color-text-primary);
+            /* Darker text on button for contrast */
             padding: 14px;
-            font-size: 1em;
-            font-weight: 500;
+            font-size: 1.1em;
+            /* Slightly larger text */
+            font-weight: 600;
+            /* Bolder text */
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+            /* Space above button */
         }
 
         .login-button:hover {
             background-color: var(--color-blue-hover);
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
         }
 
         .error-message {
-            background-color: rgba(218, 54, 51, 0.1);
+            background-color: rgba(218, 54, 51, 0.15);
+            /* Slightly darker background */
             color: var(--color-red-primary);
             border: 1px solid var(--color-red-primary);
             border-radius: 8px;
             padding: 12px;
             text-align: center;
             font-size: 0.9em;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -112,9 +154,11 @@
 <body>
 
     <div class="login-container">
-        <h1>Local File Hub</h1>
+        <h1>
+            <i class="fas fa-folder header-icon"></i>
+            Local File Hub
+        </h1>
 
-        <!-- This is where the "Incorrect password" message will appear -->
         {% with messages = get_flashed_messages() %}
         {% if messages %}
         <div class="error-message">
@@ -126,9 +170,10 @@
         <form class="login-form" action="{{ url_for('check_login') }}" method="POST">
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autofocus>
+                <input type="password" id="password" name="password" required autofocus
+                    placeholder="Enter your secret password">
             </div>
-            <button type="submit" class="login-button">Login</button>
+            <button type="submit" class="login-button">Secure Login</button>
         </form>
     </div>
 

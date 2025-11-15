@@ -8,3 +8,6 @@
 
 venv
 upx.exe
+/build_src
+/main.dist
+/main.build
